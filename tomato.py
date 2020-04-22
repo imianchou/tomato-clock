@@ -14,6 +14,7 @@
 import sys
 import time
 import subprocess
+from tqdm import tqdm
 
 WORK_MINUTES = 25
 BREAK_MINUTES = 5
@@ -52,25 +53,37 @@ def main():
 
 def tomato(minutes, notify_msg):
     start_time = time.perf_counter()
-    while True:
-        diff_seconds = int(round(time.perf_counter() - start_time))
-        left_seconds = minutes * 60 - diff_seconds
-        if left_seconds <= 0:
-            print('')
-            break
+    total_time = minutes * 60
+    countdown = format_countdown(total_time)
 
-        countdown = '{}:{} ⏰'.format(int(left_seconds / 60), int(left_seconds % 60))
-        duration = min(minutes, 25)
-        progressbar(diff_seconds, minutes * 60, duration, countdown)
-        time.sleep(1)
+    with tqdm(total=total_time, desc=countdown) as pbar:
+        while True:
+            diff_seconds = int(round(time.perf_counter() - start_time))
+            left_seconds = total_time - diff_seconds
+            if left_seconds <= 0:
+                print('')
+                break
+
+            progressbar(diff_seconds, total_time, pbar)
+            time.sleep(1)
 
     notify_me(notify_msg)
 
 
-def progressbar(curr, total, duration=10, extra=''):
-    frac = curr / total
-    filled = round(frac * duration)
-    print('\r', '🍅' * filled + '--' * (duration - filled), '[{:.0%}]'.format(frac), extra, end='')
+def progressbar(curr, total, pbar):
+    count = pbar.format_dict['n']
+    if curr > count:
+        # Update countdown description.
+        left_seconds = total - curr
+        countdown = format_countdown(left_seconds)
+        pbar.set_description_str(countdown)
+
+        # Update percentage of progress bar.
+        pbar.update(curr - count)
+
+
+def format_countdown(time_in_second):
+    return '{}:{} ⏰'.format(int(time_in_second / 60), int(time_in_second % 60))
 
 
 def notify_me(msg):
